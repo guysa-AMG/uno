@@ -1,51 +1,100 @@
 import random as rdm
 import socket as sk
+import os
 
 
 class Uno:
     def __init__(self):
-        self.colours = ["R","G","B","Y"]
-        self.wildcards = ["SKIP","REV","PICKUPx2"]
-        self.sock = sk.socket(sk.AF_INET6,sk.SOCK_STREAM)
         
-        self.deck = [f"{x}|{i}" for x in self.colours for i in range (1,10) for _ in range(2)]
-        self.deck.extend([f"{x}|0" for x in self.colours ])
-        self.deck.extend([f"{x}|{y}" for y in self.wildcards for x in self.colours for _ in range(2)])
-        self.deck.extend(["CHANGE" for i in range(4)])
-        self.deck.extend(["CHANGE|x4" for i in range(4)])
-        self.shuffle_deck()
-
+        self.sock = sk.socket(sk.AF_INET,sk.SOCK_STREAM)
         self.connect()
 
-    def connect(self):
-        self.sock.bind((self.obtain_ip(),7777))
-        self.sock.listen()
+    def parse(self,data):
+        cards=data.split(" ")
+        sorted={}
+        for i,card in enumerate(cards):
+            try:
+                colour,unit = card.split("|")
+                sorted[i]=self.coloured(unit,colour)
+            except ValueError:
+               
+                sorted[i]=card
+            
+        print(sorted)
 
+    def coloured(self,card,clr):
+        if clr =="G":
+            return self.green(card)
+        elif clr == "B":
+            return self.blue(card)
+        elif clr == "R":
+            return self.red(card)
+        elif clr == "Y":
+            return self.yellow(card)
+        else:
+            return card
+
+    def connect(self):
+        
+        self.sock.connect((self.obtain_ip(),8889))
         while True:
-            client=self.sock.accept()
+            data = self.sock.recv(512)
+            data=self.parse(data.decode())
+            print(data)
+
     def run(self):
         pass
         
 
     def obtain_ip(self):
-        return sk.gethostbyaddr(sk.gethostname())[2][0]
+       #value =input("ipaddr:")
+       #return value
+       return sk.gethostbyname(sk.gethostname())
     
     def shuffle_deck(self):
         rdm.shuffle(self.deck)
 
     def generate_deck(self):
         pass
-    def red(data):
+    def red(self,data):
         return f"\033[91m{data}\033[00m"
 
-    def green(data):
+    def green(self,data):
         return f"\033[92m{data}\033[00m"
 
-    def yellow(data):
+    def yellow(self,data):
         return f"\033[93m{data}\033[00m"
 
 
-    def blue(data):
+    def blue(self,data):
         return f"\033[94m{data}\033[00m"
 print(len(Uno().deck))
 
+print(len(Uno().deck))
+
+
+
+
+inst=sk.socket(sk.AF_INET,sk.SOCK_STREAM)
+
+inst.bind((sk.gethostbyaddr(sk.gethostname())[2][0],PORT))
+
+inst.listen()
+
+print(f"listening to incoming connection on port {PORT}")
+available_player=[]
+
+def handle(addr:sk.socket):
+    available_player.append(addr)
+    
+    for user in available_player:
+        addr.send("200-Confirm".encode())
+
+
+
+while True:
+    addr,ret = inst.accept()
+    
+    handle(addr)
+
+    
