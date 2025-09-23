@@ -1,142 +1,126 @@
-import socket as sk
-import threading
+
+from Controller import Uno
 from player import Player
-
-from time import sleep
-
-import random as rdm
-import socket as sk
 import os
+import sys
+class Game:
+    def __init__(self):
+        #Initialize current Game instance and Give Game Controller desired number of NPC player"
+        print("how many players? min=2 max=4")
+        try:
+            self.playersNum = int(input("players[2]:"))
+            if self.playersNum >4 or self.playersNum<2:
+                print("invalid num of players ")
+                print("players setting as 2")
+                self.playersNum = 2
 
-SLPTME=0.5
-class Uno:
-    def __init__(self,num_players):
-        
-        self.deck=self.generate_deck()
-        self.shuffle_deck()
-        self.players=self.initPlayers(num_players)
-        self.running=True
-        self.CurrentCard=self.pullCard()
+        except ValueError:
+            self.playersNum=2
+        self.uno_core = Uno(self.playersNum)
+        self.player :Player = self.uno_core.getMyPlayer()
+    def update(self):
+        self.player=self.uno_core.getMyPlayer()
 
-    def initPlayers(self,cnt:int):
-        players =[Player(startingCards=self.startingCards(),index=index) for index in range(2,cnt+1)]
-        players.append(Player(startingCards=self.startingCards(),npc=False))
-        return players
+    def loop(self):
 
-    def pullCard(self):
-        card=self.deck.pop()
-        return card
-    
-    def getMyPlayer(self):
-        for player in self.players:
-            if not player.npc:
-                return player
-   
-    def getUpdate(self):
-        data=[]
-        for player in self.players:
-            cardCount=len(player.cards)
-            data.append({"name":player.name,"cards":cardCount})
-        return data
-        
-    def startingCards(self):
-        startings= self.deck[-8:]
-        self.deck = self.deck[:-8]
-        return startings
-
-    def shuffle_deck(self):
-        rdm.shuffle(self.deck)
-
-    def generate_deck(self):
-        colours = ["R","G","B","Y"]
-        wildcards = ["SKIP","REV","PICKUPx2"]
-        deck = [f"{x}|{i}" for x in colours for i in range (1,10) for _ in range(2)]
-        deck.extend([f"{x}|0" for x in colours ])
-        deck.extend([f"{x}|{y}" for y in wildcards for x in colours for _ in range(2)])
-        deck.extend(["CHANGE" for i in range(4)])
-        deck.extend(["CHANGEx4" for i in range(4)])
-        return deck
-    
-    def getHumanPlayerIndex(self):
-        for index in range(len(self.players)):
-            if not self.players[index].npc:
-                return index
-    
-    def isValid(self,card):
-        ret=False
-        sep="|"
-
-        if sep in card:
-            cardColour,cardValue=card.split(sep)
-            if sep in self.CurrentCard:
-                CurrentCardColour,CurrentCardValue=self.CurrentCard.split(sep)
-                if CurrentCardColour == cardColour or CurrentCardValue == cardValue:
-                    ret=True
-        if card.startswith("CHANGE"):
-            ret=True
-        return ret
-            
-
-
-        
-
-    def react(self,playerIndex):
-        sleep(SLPTME)
-        totalPlayers=len(self.players)
-
-        if self.CurrentCard.endswith("REV"):
-            self.players.reverse()
-            playerIndex=self.getHumanPlayerIndex()+1
-
-        elif self.CurrentCard.endswith("SKIP"):
-            playerIndex=self.getHumanPlayerIndex()+2
-
-        playerIndex%=totalPlayers
-
-        for index in range(len(self.players[playerIndex].cards)):
-            if self.isValid(self.players[playerIndex].cards[index]):
-                self.CurrentCard=self.players[playerIndex].cards[index]
-                self.removePlayerCard(index,playerIndex)
-                return
-        self.pickupCard(playerIndex)
-
-    def sendCard(self,cardIndex):
-        playerIndex = self.getHumanPlayerIndex()
-        cards=self.players[self.getHumanPlayerIndex()].cards
-        if len(cards)==cardIndex:
-            self.pickupCard(playerIndex)
-        else:
-            self.CurrentCard=self.players[self.getHumanPlayerIndex()].cards[cardIndex]
-            self.removePlayerCard(cardIndex,playerIndex)
-            if self.CurrentCard=="CHANGE":
-                self.changeColourWildCard()
-            elif self.CurrentCard == "CHANGEx4":
-                self.changeColourWildCard()
-                for _ in range(4):
-                    self.pickupCard(playerIndex+1)
-                    
-
-        
-        self.react(playerIndex+1)
-    def changeColourWildCard(self):
-        colours=["Red","Green","Blue","Yellow"]
-        [print(f"{inx+1} {clr}\n") for inx,clr in enumerate(colours)]
-        error=True
-        while error:
+        while self.uno_core.running:
             try:
-                res=int(input("pick Color [1-4]"))
-                if res>=1 and res<=4:
-                    error=False
-                    self.CurrentCard=colours[res-1][0]+"|Any"
-            except ValueError:
-                pass
-    def pickupCard(self,playerIndex):
-        self.players[playerIndex].cards.append(self.pullCard())
+                self.clear()
+                self.printPlayersCards()
+                self.printCurrentCard()
+                res=self.prompt()
+                self.uno_core.sendCard(res)
+            except KeyboardInterrupt:
+                print("\n.... closing Game ....\nbye👋")
+                sys.exit(0)
+    def clear(self):
+        #os.system("clear")
+        print("\n"*2)
+        #print('''
+       #       ============================||
+       #     ||   4   0    6   6    9979    ||
+        #    ||   0   4    69  6   9    9   ||
+       #     ||   4   5    6 6 9   5    9   ||
+       #     ||    4444    4  66    9939    ||
+        #      ============================||
+        #    ''')
+        print("\n"*2)
 
-    def removePlayerCard(self,cardIndex,playerIndex):
-        newDeck=self.players[playerIndex].cards[:cardIndex]
-        newDeck.extend(self.players[playerIndex].cards[cardIndex+1:])
-        self.players[playerIndex].cards=newDeck
+    #prints ops details
+    def printPlayersCards(self):
+        players=self.uno_core.getUpdate()
+        for player in players:
+            if player["name"]!="Player 0":
+                print(f'{player["name"]} has {player["cardsCount"]} cards\n{player["cards"]}')
+
+    def giveCard(self,index):
+        card=self.player.cards[index]
+        return card
         
-if __name__ == "__main__":
-    print(Uno(4).generate_deck())
+    def printCurrentCard(self):
+        print(self.coloured(self.uno_core.CurrentCard))
+
+    
+
+    def prompt(self):
+        print("Play your card:")
+        self.render_cards()
+        loop=True
+        while loop:
+            try:
+                num=int(input(f"pick[1-{len(self.player.cards)+1}]: "))
+                
+                if num>=1 and num<=(len(self.player.cards)+1):
+                    if self.uno_core.isValid(self.player.cards[num-1]):
+                        loop=False
+                        return num-1
+                    else:
+                        print(self.red("card incompatibl\ndraw if you don't have !!!"))
+                else:
+                    print(self.red(f"please pick a number between[1-{len(self.player.cards)+1}]"))
+            
+            except ValueError:
+                print(self.red(f"please pick a number !!!"))
+            
+    #player Options
+    def render_cards(self):
+        for index,card in enumerate(self.player.cards):
+            print(f"{index+1} {self.coloured(card)}")
+        print(f"{len(self.player.cards)+1} draw (from stack)")
+
+ 
+    # call the colour functions in relative to the given card colour
+    def coloured(self,cards):
+        try:
+            clr,card=cards.split("|")
+        except ValueError:
+            clr=None;
+            card=cards
+
+        if clr =="G":
+            return self.green(card)
+        elif clr == "B":
+            return self.blue(card)
+        elif clr == "R":
+            return self.red(card)
+        elif clr == "Y":
+            return self.yellow(card)
+        else:
+            return card
+    # red colour coder     
+    def red(self,data):
+        return f"\033[91m {data} \033[00m"
+    # green colour coder 
+    def green(self,data):
+        return f"\033[92m {data} \033[00m"
+    # yellow colour coder 
+    def yellow(self,data):
+        return f"\033[93m {data} \033[00m"
+
+    # blue colour coder 
+    def blue(self,data):
+        return f"\033[94m {data} \033[00m"
+
+
+if __name__=="__main__":
+    Game().loop()
