@@ -23,7 +23,7 @@ class Game:
 
     def loop(self):
 
-        while self.uno_core.running:
+        while not self.uno_core.isComplete():
             try:
                 self.clear()
                 self.printPlayersCards()
@@ -61,9 +61,23 @@ class Game:
         print(self.coloured(self.uno_core.CurrentCard))
 
     
+    def printWinner(self):
+        return self.uno_core.winner
+    
+    def checkIfWon(self):
+        self.uno_core.checkStatus(self.uno_core.getHumanPlayerIndex())
 
     def prompt(self):
+        self.checkIfWon()
+        if self.uno_core.isComplete():
+            winner :Player=self.printWinner()
+            if winner.npc:
+                print(f"🎉 {winner.name} 🎉")
+            else:
+                print(f"🎉 You Have Won 🎉")
+            return
         print("Play your card:")
+
         self.render_cards()
         loop=True
         while loop:
@@ -71,11 +85,14 @@ class Game:
                 num=int(input(f"pick[1-{len(self.player.cards)+1}]: "))
                 
                 if num>=1 and num<=(len(self.player.cards)+1):
+                    if (len(self.player.cards)+1)==num:
+                        loop=False
+                        return num-1
                     if self.uno_core.isValid(self.player.cards[num-1]):
                         loop=False
                         return num-1
                     else:
-                        print(self.red("card incompatibl\ndraw if you don't have !!!"))
+                        print(self.red("card incompatible\ndraw if you don't have !!!"))
                 else:
                     print(self.red(f"please pick a number between[1-{len(self.player.cards)+1}]"))
             

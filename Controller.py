@@ -18,6 +18,17 @@ class Uno:
         self.running=True
         self.CurrentCard=self.pullCard()
         self.totalPlayers=len(self.players)
+        self.winner=None
+        self._isComplete=False
+
+    def isComplete(self):
+        if self._isComplete:
+            winner :Player=self.winner
+            if winner.npc:
+                print(f"🎉 {winner.name} 🎉")
+            else:
+                print(f"🎉 You Have Won 🎉")
+        return self._isComplete
        
 
     def initPlayers(self,cnt:int):
@@ -42,10 +53,11 @@ class Uno:
         return data
         
     def startingCards(self):
-        startings= self.deck[-8:]
-        self.deck = self.deck[:-8]
+        startings= self.deck[-1:]
+        self.deck = self.deck[:-1]
         return startings
-
+    def test():
+        pass
     def shuffle_deck(self):
         rdm.shuffle(self.deck)
 
@@ -97,7 +109,10 @@ class Uno:
                 return key
         return None
 
-
+    def checkStatus(self,PlayerIndex):
+        if len(self.players[PlayerIndex].cards)==0:
+            self.winner=self.players[PlayerIndex]
+            self._isComplete=True
     #npc move executor the function plays valid moves in context to the current
     def npc_play(self,playerIndex):
         for index in range(len(self.players[playerIndex].cards)):
@@ -117,6 +132,7 @@ class Uno:
                 else:
                     self.CurrentCard=self.players[playerIndex].cards[index]
                 self.removePlayerCard(index,playerIndex)
+                self.checkStatus(playerIndex)
                 return
         self.pickupCard(playerIndex)
      
@@ -138,6 +154,7 @@ class Uno:
         hidx = self.getHumanPlayerIndex()
         if (current_index:=((playerIndex+1)%self.totalPlayers)) != hidx:
             self.react(current_index)
+        
     #reads the humans given value and calls the game state to be updated
     def sendCard(self,cardIndex):
         playerIndex = self.getHumanPlayerIndex()
