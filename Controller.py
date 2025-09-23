@@ -25,9 +25,9 @@ class Uno:
         if self._isComplete:
             winner :Player=self.winner
             if winner.npc:
-                print(f"🎉 {winner.name} 🎉")
+                print(f"\t🎉 {winner.name} Has Won 🎉\n")
             else:
-                print(f"🎉 You Have Won 🎉")
+                print(f"\t🎉 You Have Won 🎉\n")
         return self._isComplete
        
 
@@ -86,8 +86,8 @@ class Uno:
                 CurrentCardColour,CurrentCardValue=self.CurrentCard.split(sep)
                 if CurrentCardColour == cardColour or CurrentCardValue == cardValue:
                     ret=True
-            elif card.startswith("CHANGE"):
-                return True
+        elif card.startswith("CHANGE"):
+            return True
         
         return ret
             

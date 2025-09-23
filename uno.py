@@ -69,13 +69,7 @@ class Game:
 
     def prompt(self):
         self.checkIfWon()
-        if self.uno_core.isComplete():
-            winner :Player=self.printWinner()
-            if winner.npc:
-                print(f"🎉 {winner.name} 🎉")
-            else:
-                print(f"🎉 You Have Won 🎉")
-            return
+        
         print("Play your card:")
 
         self.render_cards()
@@ -85,9 +79,11 @@ class Game:
                 num=int(input(f"pick[1-{len(self.player.cards)+1}]: "))
                 
                 if num>=1 and num<=(len(self.player.cards)+1):
+                    ##below is for when they pick the last option which is Draw from deck
                     if (len(self.player.cards)+1)==num:
                         loop=False
                         return num-1
+                    
                     if self.uno_core.isValid(self.player.cards[num-1]):
                         loop=False
                         return num-1
