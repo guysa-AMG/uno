@@ -1,100 +1,142 @@
+import socket as sk
+import threading
+from player import Player
+
+from time import sleep
+
 import random as rdm
 import socket as sk
 import os
 
-
+SLPTME=0.5
 class Uno:
-    def __init__(self):
+    def __init__(self,num_players):
         
-        self.sock = sk.socket(sk.AF_INET,sk.SOCK_STREAM)
-        self.connect()
+        self.deck=self.generate_deck()
+        self.shuffle_deck()
+        self.players=self.initPlayers(num_players)
+        self.running=True
+        self.CurrentCard=self.pullCard()
 
-    def parse(self,data):
-        cards=data.split(" ")
-        sorted={}
-        for i,card in enumerate(cards):
-            try:
-                colour,unit = card.split("|")
-                sorted[i]=self.coloured(unit,colour)
-            except ValueError:
-               
-                sorted[i]=card
-            
-        print(sorted)
+    def initPlayers(self,cnt:int):
+        players =[Player(startingCards=self.startingCards(),index=index) for index in range(2,cnt+1)]
+        players.append(Player(startingCards=self.startingCards(),npc=False))
+        return players
 
-    def coloured(self,card,clr):
-        if clr =="G":
-            return self.green(card)
-        elif clr == "B":
-            return self.blue(card)
-        elif clr == "R":
-            return self.red(card)
-        elif clr == "Y":
-            return self.yellow(card)
-        else:
-            return card
-
-    def connect(self):
-        
-        self.sock.connect((self.obtain_ip(),8889))
-        while True:
-            data = self.sock.recv(512)
-            data=self.parse(data.decode())
-            print(data)
-
-    def run(self):
-        pass
-        
-
-    def obtain_ip(self):
-       #value =input("ipaddr:")
-       #return value
-       return sk.gethostbyname(sk.gethostname())
+    def pullCard(self):
+        card=self.deck.pop()
+        return card
     
+    def getMyPlayer(self):
+        for player in self.players:
+            if not player.npc:
+                return player
+   
+    def getUpdate(self):
+        data=[]
+        for player in self.players:
+            cardCount=len(player.cards)
+            data.append({"name":player.name,"cards":cardCount})
+        return data
+        
+    def startingCards(self):
+        startings= self.deck[-8:]
+        self.deck = self.deck[:-8]
+        return startings
+
     def shuffle_deck(self):
         rdm.shuffle(self.deck)
 
     def generate_deck(self):
-        pass
-    def red(self,data):
-        return f"\033[91m{data}\033[00m"
-
-    def green(self,data):
-        return f"\033[92m{data}\033[00m"
-
-    def yellow(self,data):
-        return f"\033[93m{data}\033[00m"
-
-
-    def blue(self,data):
-        return f"\033[94m{data}\033[00m"
-print(len(Uno().deck))
-
-print(len(Uno().deck))
-
-
-
-
-inst=sk.socket(sk.AF_INET,sk.SOCK_STREAM)
-
-inst.bind((sk.gethostbyaddr(sk.gethostname())[2][0],PORT))
-
-inst.listen()
-
-print(f"listening to incoming connection on port {PORT}")
-available_player=[]
-
-def handle(addr:sk.socket):
-    available_player.append(addr)
+        colours = ["R","G","B","Y"]
+        wildcards = ["SKIP","REV","PICKUPx2"]
+        deck = [f"{x}|{i}" for x in colours for i in range (1,10) for _ in range(2)]
+        deck.extend([f"{x}|0" for x in colours ])
+        deck.extend([f"{x}|{y}" for y in wildcards for x in colours for _ in range(2)])
+        deck.extend(["CHANGE" for i in range(4)])
+        deck.extend(["CHANGEx4" for i in range(4)])
+        return deck
     
-    for user in available_player:
-        addr.send("200-Confirm".encode())
-
-
-
-while True:
-    addr,ret = inst.accept()
+    def getHumanPlayerIndex(self):
+        for index in range(len(self.players)):
+            if not self.players[index].npc:
+                return index
     
-    handle(addr)
+    def isValid(self,card):
+        ret=False
+        sep="|"
 
-    
+        if sep in card:
+            cardColour,cardValue=card.split(sep)
+            if sep in self.CurrentCard:
+                CurrentCardColour,CurrentCardValue=self.CurrentCard.split(sep)
+                if CurrentCardColour == cardColour or CurrentCardValue == cardValue:
+                    ret=True
+        if card.startswith("CHANGE"):
+            ret=True
+        return ret
+            
+
+
+        
+
+    def react(self,playerIndex):
+        sleep(SLPTME)
+        totalPlayers=len(self.players)
+
+        if self.CurrentCard.endswith("REV"):
+            self.players.reverse()
+            playerIndex=self.getHumanPlayerIndex()+1
+
+        elif self.CurrentCard.endswith("SKIP"):
+            playerIndex=self.getHumanPlayerIndex()+2
+
+        playerIndex%=totalPlayers
+
+        for index in range(len(self.players[playerIndex].cards)):
+            if self.isValid(self.players[playerIndex].cards[index]):
+                self.CurrentCard=self.players[playerIndex].cards[index]
+                self.removePlayerCard(index,playerIndex)
+                return
+        self.pickupCard(playerIndex)
+
+    def sendCard(self,cardIndex):
+        playerIndex = self.getHumanPlayerIndex()
+        cards=self.players[self.getHumanPlayerIndex()].cards
+        if len(cards)==cardIndex:
+            self.pickupCard(playerIndex)
+        else:
+            self.CurrentCard=self.players[self.getHumanPlayerIndex()].cards[cardIndex]
+            self.removePlayerCard(cardIndex,playerIndex)
+            if self.CurrentCard=="CHANGE":
+                self.changeColourWildCard()
+            elif self.CurrentCard == "CHANGEx4":
+                self.changeColourWildCard()
+                for _ in range(4):
+                    self.pickupCard(playerIndex+1)
+                    
+
+        
+        self.react(playerIndex+1)
+    def changeColourWildCard(self):
+        colours=["Red","Green","Blue","Yellow"]
+        [print(f"{inx+1} {clr}\n") for inx,clr in enumerate(colours)]
+        error=True
+        while error:
+            try:
+                res=int(input("pick Color [1-4]"))
+                if res>=1 and res<=4:
+                    error=False
+                    self.CurrentCard=colours[res-1][0]+"|Any"
+            except ValueError:
+                pass
+    def pickupCard(self,playerIndex):
+        self.players[playerIndex].cards.append(self.pullCard())
+
+    def removePlayerCard(self,cardIndex,playerIndex):
+        newDeck=self.players[playerIndex].cards[:cardIndex]
+        newDeck.extend(self.players[playerIndex].cards[cardIndex+1:])
+        self.players[playerIndex].cards=newDeck
+        
+if __name__ == "__main__":
+    print(Uno(4).generate_deck())
