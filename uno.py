@@ -1,12 +1,17 @@
 
 from Controller import Uno
 from player import Player
+from modules import check_requirements
 import os
 import sys
 MAX=6
+check_requirements()
+import pygame
+
 class Game:
 
     def __init__(self):
+
         #Initialize current Game instance and Give Game Controller desired number of NPC player"
         self.print(f"how many players? min=2 max={MAX}")
         try:
