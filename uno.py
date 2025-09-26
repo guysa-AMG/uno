@@ -57,7 +57,7 @@ class Game:
         players=self.uno_core.getUpdate()
         for player in players:
             if player.npc:
-                self.print(f'{player.name} has played {self.coloured(player.CurrentCard)} and has {player.card_count()} cards\n\t{player.cards}')
+                self.print(f'{player.name} has played {self.coloured(player.CurrentCard)} and has {player.card_count()} cards')
 
     def print(self,data):
         print(f"\t{data}")
