@@ -4,6 +4,9 @@ class Player:
         self.npc =npc
         self.name=f"Player {index}"
         self.cards=startingCards
-        
+        self.CurrentCard=None
+       
+    def card_count(self):
+        return len(self.cards)
     
 

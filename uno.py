@@ -3,15 +3,17 @@ from Controller import Uno
 from player import Player
 import os
 import sys
+MAX=6
 class Game:
+
     def __init__(self):
         #Initialize current Game instance and Give Game Controller desired number of NPC player"
-        print("how many players? min=2 max=4")
+        self.print(f"how many players? min=2 max={MAX}")
         try:
             self.playersNum = int(input("players[2]:"))
-            if self.playersNum >4 or self.playersNum<2:
-                print("invalid num of players ")
-                print("players setting as 2")
+            if self.playersNum >MAX or self.playersNum<2:
+                self.print("invalid num of players ")
+                self.print("players setting as 2")
                 self.playersNum = 2
 
         except ValueError:
@@ -31,34 +33,46 @@ class Game:
                 res=self.prompt()
                 self.uno_core.sendCard(res)
             except KeyboardInterrupt:
-                print("\n.... closing Game ....\nbye👋")
+                self.print("\t\n.... closing Game ....\t\nbye👋")
                 sys.exit(0)
-    def clear(self):
-        #os.system("clear")
-        print("\n"*2)
-        #print('''
-       #       ============================||
-       #     ||   4   0    6   6    9979    ||
-        #    ||   0   4    69  6   9    9   ||
-       #     ||   4   5    6 6 9   5    9   ||
-       #     ||    4444    4  66    9939    ||
-        #      ============================||
-        #    ''')
-        print("\n"*2)
+    def printTitle(self,data):
+        print(self.bg_red(data))
 
-    #prints ops details
+         
+
+    def clear(self):
+        os.system("clear")
+        self.print("\n"*2)
+        self.printTitle('''
+\t============================||
+\t||   4   0    6   6    9979    ||
+\t||   0   4    69  6   9    9   ||
+\t||   4   5    6 6 9   5    9   ||
+\t||    4444    4  66    9939    ||
+\t============================||''')
+        self.print("\n"*2)
+
+    #self.prints ops details
     def printPlayersCards(self):
         players=self.uno_core.getUpdate()
         for player in players:
-            if player["name"]!="Player 0":
-                print(f'{player["name"]} has {player["cardsCount"]} cards\n{player["cards"]}')
+            if player.npc:
+                self.print(f'{player.name} has played {self.coloured(player.CurrentCard)} and has {player.card_count()} cards\n\t{player.cards}')
 
+    def print(self,data):
+        print(f"\t{data}")
+        
     def giveCard(self,index):
         card=self.player.cards[index]
         return card
         
     def printCurrentCard(self):
-        print(self.coloured(self.uno_core.CurrentCard))
+        self.print(f'''
+                        Current Card    
+                                                         
+                        |{self.coloured(self.uno_core.CurrentCard())}|
+                                                                  
+                            ''')
 
     
     def printWinner(self):
@@ -68,15 +82,18 @@ class Game:
         self.uno_core.checkStatus(self.uno_core.getHumanPlayerIndex())
 
     def prompt(self):
-        self.checkIfWon()
+      
         
-        print("Play your card:")
+        self.print("\tPlay your card:")
 
         self.render_cards()
         loop=True
         while loop:
             try:
-                num=int(input(f"pick[1-{len(self.player.cards)+1}]: "))
+                inpt=input(f"\tpick[1-{len(self.player.cards)+1}]: ")
+                if inpt.strip(" ").lower() =="exit":
+                    raise KeyboardInterrupt
+                num=int(inpt)
                 
                 if num>=1 and num<=(len(self.player.cards)+1):
                     ##below is for when they pick the last option which is Draw from deck
@@ -88,22 +105,23 @@ class Game:
                         loop=False
                         return num-1
                     else:
-                        print(self.red("card incompatible\ndraw if you don't have !!!"))
+                        self.print(self.red("card incompatible\t\t\ndraw if you don't have !!!"))
                 else:
-                    print(self.red(f"please pick a number between[1-{len(self.player.cards)+1}]"))
+                    self.print(self.red(f"please pick a number between[1-{len(self.player.cards)+1}]"))
             
             except ValueError:
-                print(self.red(f"please pick a number !!!"))
+                self.print(self.red(f"please pick a number !!!"))
             
     #player Options
     def render_cards(self):
         for index,card in enumerate(self.player.cards):
-            print(f"{index+1} {self.coloured(card)}")
-        print(f"{len(self.player.cards)+1} draw (from stack)")
+            self.print(f"{index+1} {self.coloured(card)}")
+        self.print(f"{len(self.player.cards)+1} draw (from stack)")
 
- 
     # call the colour functions in relative to the given card colour
     def coloured(self,cards):
+        if cards == None:
+            return cards
         try:
             clr,card=cards.split("|")
         except ValueError:
@@ -129,11 +147,11 @@ class Game:
     # yellow colour coder 
     def yellow(self,data):
         return f"\033[93m {data} \033[00m"
-
     # blue colour coder 
     def blue(self,data):
         return f"\033[94m {data} \033[00m"
-
+    def bg_red(self,data):
+        return f"\033[41m{data}\033[00m"
 
 if __name__=="__main__":
     Game().loop()
