@@ -8,5 +8,7 @@ class Player:
        
     def card_count(self):
         return len(self.cards)
+    def __repr__(self):
+        return f"name {self.name} Cards:{len(self.cards)} npc :{self.npc}"
     
 
