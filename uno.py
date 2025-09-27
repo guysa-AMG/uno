@@ -2,16 +2,17 @@
 from Controller import Uno
 from player import Player
 from modules import check_requirements
+from card import Card
 import os
 import sys
 MAX=6
 check_requirements()
-import pygame
+import pygame as gmi
 
 class Game:
 
     def __init__(self):
-
+        
         #Initialize current Game instance and Give Game Controller desired number of NPC player"
         self.print(f"how many players? min=2 max={MAX}")
         try:
@@ -20,26 +21,62 @@ class Game:
                 self.print("invalid num of players ")
                 self.print("players setting as 2")
                 self.playersNum = 2
-
+           
         except ValueError:
             self.playersNum=2
         self.uno_core = Uno(self.playersNum)
         self.player :Player = self.uno_core.getMyPlayer()
+        self.pygame_init()
+
+    def pygame_init(self):
+        gmi.init()
+        self.screen=gmi.display.set_mode((850,1000),gmi.VIDEORESIZE|gmi.RESIZABLE)
+        w,h=self.screen.get_size()
+        self.cards=[]
+        self.opsCard=[]
+        self.ops2Card=[]
+        self.ops4Card=[]
+        for i in range(7):
+            self.cards.append(Card("s7",f"G|{i}",npc=False))
+            self.opsCard.append(Card("player2","Y|5"))
+            self.ops2Card.append(Card("player3","Y|5",True,(120,60)))
+            self.ops4Card.append(Card("player4","Y|5",True,(120,60)))
+
+        self.currentCard=Card("current","B|8",npc=False)
+
+        
+        
+
     def update(self):
         self.player=self.uno_core.getMyPlayer()
 
     def loop(self):
-
-        while not self.uno_core.isComplete():
+        kill=False
+        while not kill:
             try:
                 self.clear()
-                self.printPlayersCards()
-                self.printCurrentCard()
-                res=self.prompt()
-                self.uno_core.sendCard(res)
+                for event in gmi.event.get():
+                    if event.type ==gmi.QUIT:
+                        kill=True
+                    if event.type == gmi.MOUSEBUTTONDOWN:
+                        self.onclick(event.pos)
+                    if event.type == gmi.MOUSEMOTION:
+                        self.onHover(event.pos)
             except KeyboardInterrupt:
                 self.print("\t\n.... closing Game ....\t\nbye👋")
                 sys.exit(0)
+    def onclick(self,pos):
+        for card in self.cards:
+            card:Card
+            if card.isClicked(pos):
+                self.currentCard=card
+                self.cards.remove(card)
+    def onHover(self,pos):
+        for card in self.cards:
+            card.isHover(pos)
+                
+                
+
     def printTitle(self,data):
         print(self.bg_red(data))
 
@@ -47,15 +84,24 @@ class Game:
 
     def clear(self):
         os.system("clear")
+        font=gmi.font.SysFont("Liberation Mono Bold.ttf",50)
+        font_surface = font.render("  UNO  ",True,(255,255,255),(255,0,0))
+        
+        w,h=self.screen.get_size()
+        self.screen.fill((255,255,255),gmi.Rect(0,0,w,h))
+       
+        self.screen.blit(font_surface,(w//2,10),gmi.Rect(0,0,w,50))
+
+        [c.draw(self.screen,(((w/2)-(len(self.cards)*20))+(i*40),h-150)) for i,c in enumerate(self.cards)]
+        [c.draw(self.screen,(((w/2)-(len(self.opsCard)*20))+(i*40),-50)) for i,c in enumerate(self.opsCard)]
+        [c.draw(self.screen,(-80,((h//2)-((len(self.ops2Card)*20))+(i*40)))) for i,c in enumerate(self.ops2Card) ]
+        [c.draw(self.screen,(w-100,((h//2)-((len(self.ops4Card)*20))+(i*40)))) for i,c in enumerate(self.ops4Card) ]
+        
+        self.currentCard.draw(self.screen,(w//2-(self.currentCard.width//2),(h//2)-(self.currentCard.height//2)))
+        gmi.display.flip()
+      
         self.print("\n"*2)
-        self.printTitle('''
-\t============================||
-\t||   4   0    6   6    9979    ||
-\t||   0   4    69  6   9    9   ||
-\t||   4   5    6 6 9   5    9   ||
-\t||    4444    4  66    9939    ||
-\t============================||''')
-        self.print("\n"*2)
+
 
     #self.prints ops details
     def printPlayersCards(self):
