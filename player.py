@@ -10,5 +10,12 @@ class Player:
         return len(self.cards)
     def __repr__(self):
         return f"name {self.name} Cards:{len(self.cards)} npc :{self.npc}"
-    
+    def winning_message(self):
+        message=""
+        if self.npc:
+            message=f"!!! {self.name} Has Won !!!"
+        else:
+            message="!!! You Have Won !!"
+        return message
+
 
