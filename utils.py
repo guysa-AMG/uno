@@ -1,6 +1,6 @@
 import pygame as gme
 from pygame import Rect
-import pygamepopup
+
 import sys
 def text(screen,txt,sz,pos,color=(0,0,0)):
     font=gme.font.SysFont("notosans",sz,True)

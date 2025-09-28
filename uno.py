@@ -1,9 +1,8 @@
 
-from Controller import Uno
+
 from player import Player
 from modules import check_requirements
 from card import Card
-import os
 import sys
 from time import sleep
 import random as rdm
