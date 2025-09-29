@@ -5,5 +5,5 @@ def check_requirements():
         import pygame
         import pytest
     except ModuleNotFoundError:
-        os.system("python3 -m pip install --break-system-packages -r requirements.txt")
+        os.system("python3 -m pip install -r requirements.txt")
     

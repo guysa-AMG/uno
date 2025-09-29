@@ -2,23 +2,19 @@
 
 from player import Player
 from modules import check_requirements
-from card import Card
+check_requirements()
+
 import sys
 from time import sleep
 import random as rdm
 from utils import Button,Text,ColorPicker
+from card import Card
 MAX=6
-check_requirements()
 import pygame as gmi
-STARTING_CARDS=-1
+STARTING_CARDS=-7
 class Game:
 
     def __init__(self):
-        
-        #Initialize current Game instance and Give Game Controller desired number of NPC player"
-       
-        #self.uno_core = Uno(self.playersNum)
-        #self.player :Player = self.uno_core.getMyPlayer()
         
         self.currentCard,self.deck=self.generate_deck()
         self.shuffle_deck()
@@ -235,17 +231,18 @@ class Game:
         totalplayer=len(self.players)
         self.cpi+=1
         self.cpi%=totalplayer
-        print(f"After:{self.players[self.cpi].name}")
+      
         
     def action(self,card,npc=False):
-        print("=================")
-        print(f"Before:{self.players[self.cpi].name}")
+     
         valid=True
         print(card.card)
         if card.card.startswith("*"):
             if npc:
                 clr=self.getfreqColour(self.players[self.cpi].cards)
                 self.currentCard.update(f"{clr}|{self.currentCard.value}")
+                if not self.currentCard.visible:
+                    self.currentCard.turn()
      
 
             else:
@@ -270,6 +267,8 @@ class Game:
                self.pickup(self.cpi+1,2)
              
             self.currentCard=card
+            if not self.currentCard.visible:
+                self.currentCard.turn()
            
         else:
             valid=False
@@ -303,13 +302,21 @@ class Game:
         total=len(self.players)
         index%=total
         for _ in range(cnt):
+            card =self.pullCard()
+            if self.get_human_index()==index:
+                card.turn()
+            plr = int(self.players[index].name.split(" ")[1])
+            if plr>2:
+                card.rotate(angle=-90 if index==3 else 90)
 
-            self.players[index].cards.append(self.pullCard())
+            self.players[index].cards.append(card)
                 
     def colorPicker(self):
         clr=ColorPicker(self.screen)
        
         self.currentCard.update(f"{clr}|{self.currentCard.value}")
+        if not self.currentCard.visible:
+                self.currentCard.turn()
      
     def robot_play(self):
         if self.players[self.cpi].npc:
@@ -341,12 +348,12 @@ class Game:
     def render(self):
         #os.system("clear")
         font=gmi.font.SysFont("nonosans",50)
-        font_surface = font.render("  UNO  ",True,(255,255,255),(255,0,0))
+        
         
         w,h=self.screen.get_size()
         self.screen.fill((255,255,255),gmi.Rect(0,0,w,h))
        
-        self.screen.blit(font_surface,(w//2,10),gmi.Rect(0,0,w,50))
+       
         [card.draw(self.screen,((w//2)-(150),(h//2)-(70))) for card in self.deck]
 
         for player in self.players:

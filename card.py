@@ -1,6 +1,7 @@
+
 import pygame
 class Card:
-    def __init__(self,name,card,visible=True,size=None):
+    def __init__(self,name,card,visible=False,size=None):
         self.name = name
         self.card=card
         self.visible=visible
@@ -22,7 +23,7 @@ class Card:
             self.width,self.height=size
         
     def turn(self):
-        return
+        
         if self.visible:
             self.color=(0,0,0)
             self.value="?"
@@ -30,6 +31,7 @@ class Card:
         else:
             self.colorCode(self.card)
             self.visible=True
+            self.value= self.card.split("|")[1] if "|" in self.card else self.card
 
     def rotate(self,angle):
         self.width,self.height=self.height,self.width
@@ -54,11 +56,12 @@ class Card:
             elif color=="Y":
                 self.color=(255,255,0)
             self.value=value
-            self.card_Surface = self._font.render(self.value,True,(0,0,0))
+            
 
         else:
             self.color=(0,0,0)
             self.value=card
+        self.card_Surface = self._font.render(self.value,True,(0,0,0))
         
 
     def draw(self,screen,updated):
