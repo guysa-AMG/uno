@@ -1,157 +1,468 @@
-
-from Controller import Uno
 from player import Player
-import os
+from modules import check_requirements
+
+check_requirements()
+
 import sys
-MAX=6
+from time import sleep
+import random as rdm
+from utils import Button, Text, ColorPicker
+from card import Card
+
+MAX = 6
+import pygame as gmi
+
+STARTING_CARDS = -7
+
+
 class Game:
 
     def __init__(self):
-        #Initialize current Game instance and Give Game Controller desired number of NPC player"
-        self.print(f"how many players? min=2 max={MAX}")
-        try:
-            self.playersNum = int(input("players[2]:"))
-            if self.playersNum >MAX or self.playersNum<2:
-                self.print("invalid num of players ")
-                self.print("players setting as 2")
-                self.playersNum = 2
 
-        except ValueError:
-            self.playersNum=2
-        self.uno_core = Uno(self.playersNum)
-        self.player :Player = self.uno_core.getMyPlayer()
-    def update(self):
-        self.player=self.uno_core.getMyPlayer()
+        self.currentCard, self.deck = self.generate_deck()
+        self.shuffle_deck()
+        self.players = []
+        self.cpi = 0
+        self.winner = None
+        self.NumPlayers = 2
+        self.pygame_init()
+
+    def pygame_init(self):
+        gmi.init()
+
+        self.widgets = []
+        self.screen = gmi.display.set_mode((800, 600), gmi.VIDEORESIZE | gmi.RESIZABLE)
+        w, h = self.screen.get_size()
+
+        self.startScreen()
+
+    def startingCards(self):
+
+        startings = self.deck[STARTING_CARDS:]
+        self.deck = self.deck[:STARTING_CARDS]
+
+        return startings
+
+    def startScreen(self):
+        play = False
+        w, h = self.screen.get_size()
+        btn = Button(
+            screen=self.screen,
+            text="Start",
+            pos=((w // 2) - 30, (h // 2) - 30),
+            sz=(180, 60),
+        )
+        txt = Text(
+            screen=self.screen, obj="Welcome To Uno!", pos=((w // 2), (h // 2)), sz=50
+        )
+        end = False
+        while not play:
+            self.refresh()
+
+            x, y = self.screen.get_size()
+            for event in gmi.event.get():
+                if event.type is gmi.QUIT:
+                    play = True
+                    end = True
+                elif event.type == gmi.MOUSEBUTTONDOWN:
+                    if btn.onClick(event.pos, print):
+                        play = True
+            txt.draw(((x // 2) - (txt.width // 2), y // 2 - (txt.height // 2) - 50))
+            btn.draw(
+                (
+                    (x // 2) - (btn.rect.width // 2),
+                    y // 2 - (btn.rect.height // 2) + 50,
+                ),
+                fnt_sz=40,
+            )
+            gmi.display.flip()
+        if end:
+            sys.exit(0)
+        self.PlayerSelectScreen()
+
+    def PlayerSelectScreen(self):
+        play = False
+        w, h = self.screen.get_size()
+        txt = Text(
+            screen=self.screen, obj="Select Players", pos=((w // 2), (h // 2)), sz=50
+        )
+        input = [
+            Button(
+                screen=self.screen,
+                text=f"{num} Players",
+                pos=((w // 2) - 30, (h // 2) - 30),
+                sz=(180, 60),
+            )
+            for num in range(2, 5)
+        ]
+        end = False
+        while not play:
+            self.refresh()
+            x, y = self.screen.get_size()
+            for event in gmi.event.get():
+                if event.type is gmi.QUIT:
+                    play = True
+                    end = True
+                elif event.type == gmi.MOUSEBUTTONDOWN:
+                    for btn in input:
+                        if btn.onClick(event.pos, self.handle_btn):
+                            play = True
+            txt.draw(((x // 2) - (txt.width // 2), y // 2 - (txt.height // 2) - 70))
+            for num, btn in enumerate(input):
+                btn.draw(
+                    (
+                        (x // 2) - (btn.rect.width // 2),
+                        y // 2 - (btn.rect.height // 2) + (70 * (num)),
+                    ),
+                    fnt_sz=20,
+                )
+            gmi.display.flip()
+
+        if end:
+            sys.exit(0)
+        self.createNpcs(self.NumPlayers)
+        self.loop()
+
+    def shuffle_deck(self):
+        rdm.shuffle(self.deck)
+
+    def generate_deck(self):
+        colours = ["R", "G", "B", "Y"]
+        wildcards = ["R", "S", "x2"]
+        deck = [
+            Card(str(i), f"{x}|{i}")
+            for x in colours
+            for i in range(1, 10)
+            for _ in range(2)
+        ]
+        deck.extend([Card("0", f"{x}|0") for x in colours])
+        rdm.shuffle(deck)
+        startingDeck = deck.pop()
+        deck.extend(
+            [Card(y, f"{x}|{y}") for y in wildcards for x in colours for _ in range(2)]
+        )
+        deck.extend([Card("*", "*") for i in range(4)])
+        deck.extend([Card("*x4", "*x4") for i in range(4)])
+        startingDeck.turn()
+        return startingDeck, deck
+
+    def createNpcs(self, count):
+        self.my_cards = [card for card in self.startingCards() if not card.turn()]
+        self.players.append(Player(self.my_cards, 1, npc=False))
+
+        for index in range(2, count + 1):
+            if index < 3:
+                p_deck = self.startingCards()
+            else:
+                p_deck = []
+                for crd in self.startingCards():
+                    crd.rotate(angle=-90 if index == 3 else 90)
+                    p_deck.append(crd)
+
+            pl = Player(p_deck, index)
+
+            self.players.append(pl)
+
+    def refresh(self):
+        self.screen.fill((255, 255, 255))
+
+    def handle_btn(self, data: str):
+        print(f"{data} clicked")
+        if data.endswith("players"):
+            self.NumPlayers = int(data.split(" ")[0])
+
+    def recycleUsedCards(self):
+        self.deck.extend(self.prevUsedCards)
+        self.prevUsedCards = []
+        self.shuffle_deck()
+
+    def pullCard(self):
+
+        len_of_deck = len(self.deck)
+        if len_of_deck <= 1:
+            self.recycleUsedCards()
+        card = self.deck.pop()
+        return card
 
     def loop(self):
+        kill = False
+        while not kill and not self.checkIfWon():
+            self.refresh()
+            self.render()
 
-        while not self.uno_core.isComplete():
-            try:
-                self.clear()
-                self.printPlayersCards()
-                self.printCurrentCard()
-                res=self.prompt()
-                self.uno_core.sendCard(res)
-            except KeyboardInterrupt:
-                self.print("\t\n.... closing Game ....\t\nbye👋")
-                sys.exit(0)
-    def printTitle(self,data):
-        print(self.bg_red(data))
+            for event in gmi.event.get():
+                if event.type == gmi.QUIT:
+                    kill = True
+                if event.type == gmi.MOUSEBUTTONDOWN:
+                    self.onclick(event.pos)
 
-         
+        if self.winner:
+            self.outro()
 
-    def clear(self):
-        os.system("clear")
-        self.print("\n"*2)
-        self.printTitle('''
-\t============================||
-\t||   4   0    6   6    9979    ||
-\t||   0   4    69  6   9    9   ||
-\t||   4   5    6 6 9   5    9   ||
-\t||    4444    4  66    9939    ||
-\t============================||''')
-        self.print("\n"*2)
+    def outro(self):
+        play = False
+        w, h = self.screen.get_size()
+        btn = Button(
+            screen=self.screen,
+            text="Play Again",
+            pos=((w // 2) - 60, (h // 2) - 30),
+            sz=(180, 60),
+        )
+        txt = Text(
+            screen=self.screen,
+            obj=self.winner.winning_message(),
+            pos=((w // 2), (h // 2)),
+            sz=60,
+        )
+        close = Button(
+            screen=self.screen,
+            text="Close",
+            pos=((w // 2) + 60, (h // 2) - 30),
+            sz=(180, 60),
+        )
 
-    #self.prints ops details
-    def printPlayersCards(self):
-        players=self.uno_core.getUpdate()
-        for player in players:
-            if player.npc:
-                self.print(f'{player.name} has played {self.coloured(player.CurrentCard)} and has {player.card_count()} cards')
+        end = False
+        while not play:
+            self.refresh()
 
-    def print(self,data):
-        print(f"\t{data}")
-        
-    def giveCard(self,index):
-        card=self.player.cards[index]
-        return card
-        
-    def printCurrentCard(self):
-        self.print(f'''
-                        Current Card    
-                                                         
-                        |{self.coloured(self.uno_core.CurrentCard())}|
-                                                                  
-                            ''')
+            x, y = self.screen.get_size()
+            for event in gmi.event.get():
+                if event.type is gmi.QUIT:
+                    play = True
+                    end = True
+                elif event.type == gmi.MOUSEBUTTONDOWN:
+                    if btn.onClick(event.pos, print):
+                        play = True
+                        self.__init__()
+                    elif close.onClick(event.pos, print):
+                        sys.exit(0)
+            txt.draw(((x // 2) - (txt.width // 2), y // 2 - (txt.height // 2) - 50))
+            btn.draw(((x // 2) - 180, y // 2 - (btn.rect.height // 2) + 50), fnt_sz=20)
+            close.draw(((x // 2) + 60, y // 2 - (btn.rect.height // 2) + 50), fnt_sz=40)
 
-    
+            gmi.display.flip()
+        if end:
+            sys.exit(0)
+        self.PlayerSelectScreen()
+
+    def isValid(self, c: Card):
+        sep = "|"
+        if sep in c.card:
+            new_Color, newValue = c.card.split(sep)
+            currentColour, currentValue = self.currentCard.card.split(sep)
+            if currentColour == new_Color or currentValue == newValue:
+                return True
+
+        elif c.card.startswith("*"):
+            return True
+        return False
+
+    def getfreqColour(self, cards):
+        if len(cards) < 3:
+            return "R"
+        lst = {}
+        for cardClass in cards:
+            card = cardClass.card
+            if "|" in card:
+                clr, _ = card.split("|")
+                try:
+                    lst[clr] += 1
+                except:
+                    lst[clr] = 1
+
+        maxv = max(list(lst.values()))
+
+        for key in lst:
+            if lst[key] == maxv:
+                return key
+        return None
+
+    def nextPlayer(self):
+
+        totalplayer = len(self.players)
+        self.cpi += 1
+        self.cpi %= totalplayer
+
+    def action(self, card, npc=False):
+
+        valid = True
+        print(card.card)
+        if card.card.startswith("*"):
+            if npc:
+                clr = self.getfreqColour(self.players[self.cpi].cards)
+                self.currentCard.update(f"{clr}|{self.currentCard.value}")
+                
+                if not self.currentCard.visible:
+                    self.currentCard.turn()
+
+            else:
+                self.colorPicker()
+
+            if card.card.endswith("x4"):
+                self.pickup(self.cpi + 1, 4)
+
+            return valid
+        elif self.isValid(card):
+            total = len(self.players)
+            if card.card.endswith("R"):
+                print("Reversing")
+                current_player = self.players[self.cpi]
+                self.players.reverse()
+                self.cpi = self.players.index(current_player)
+            elif card.card.endswith("S"):
+                print("Skipping")
+                self.cpi += 1
+                self.cpi %= total
+            elif card.card.endswith("x2"):
+                self.pickup(self.cpi + 1, 2)
+
+            self.currentCard = card
+            if not self.currentCard.visible:
+                self.currentCard.turn()
+
+        else:
+            valid = False
+        return valid
+
+    def get_human_index(self):
+        for num, player in enumerate(self.players):
+            if not player.npc:
+                return num
+
+    def onclick(self, pos):
+        my_index = self.get_human_index()
+        if self.cpi == my_index:
+            for card in self.my_cards:
+                if card.isClicked(pos):
+                    if self.action(card):
+                        self.my_cards.remove(card)
+                        self.nextPlayer()
+
+            if self.deck[-1].isClicked(pos):
+                card = self.deck.pop()
+                card.turn()
+                self.my_cards.append(card)
+                self.nextPlayer()
+        else:
+            print("!!! please wait your turn !!!")
+
+    def pickup(self, index, cnt):
+        total = len(self.players)
+        index %= total
+        for _ in range(cnt):
+            card = self.pullCard()
+            if self.get_human_index() == index:
+                card.turn()
+            plr = int(self.players[index].name.split(" ")[1])
+            if plr > 2:
+                card.rotate(angle=-90 if index == 3 else 90)
+
+            self.players[index].cards.append(card)
+
+    def colorPicker(self):
+        clr = ColorPicker(self.screen)
+
+        self.currentCard.update(f"{clr}|{self.currentCard.value}")
+        if not self.currentCard.visible:
+            self.currentCard.turn()
+
+    def robot_play(self):
+        if self.players[self.cpi].npc:
+            player = self.players[self.cpi]
+            played = False
+            index = self.players.index(player)
+            for card in player.cards:
+                if self.action(card, npc=True):
+                    if self.players[self.cpi] == player:
+                        self.players[self.cpi].cards.remove(card)
+                    else:
+                        self.players[index].cards.remove(card)
+
+                    played = True
+                    break
+            if not played:
+                self.pickup(self.cpi, 1)
+                print(f"{self.players[self.cpi].name} picked up")
+
+            sleep(1)
+
+            self.nextPlayer()
+
+    def render(self):
+        # os.system("clear")
+        font = gmi.font.SysFont("nonosans", 50)
+
+        w, h = self.screen.get_size()
+        self.screen.fill((255, 255, 255), gmi.Rect(0, 0, w, h))
+
+        [
+            card.draw(self.screen, ((w // 2) - (150), (h // 2) - (70)))
+            for card in self.deck
+        ]
+
+        for player in self.players:
+            player: Player
+
+            if player.name == "Player 1":
+                [
+                    c.draw(
+                        self.screen,
+                        (((w // 2) - (len(player.cards) * 30)) + (i * 60), h - 150),
+                    )
+                    for i, c in enumerate(player.cards)
+                ]
+            elif player.name == "Player 2":
+                [
+                    c.draw(
+                        self.screen,
+                        (((w // 2) - (len(player.cards) * 30)) + (i * 60), -50),
+                    )
+                    for i, c in enumerate(player.cards)
+                ]
+            elif player.name == "Player 3":
+
+                [
+                    c.draw(
+                        self.screen,
+                        (-50, ((h // 2) - ((len(player.cards) * 30)) + (i * 60))),
+                    )
+                    for i, c in enumerate(player.cards)
+                ]
+            elif player.name == "Player 4":
+                [
+                    c.draw(
+                        self.screen,
+                        (w - 100, ((h // 2) - ((len(player.cards) * 30)) + (i * 60))),
+                    )
+                    for i, c in enumerate(player.cards)
+                ]
+        self.robot_play()
+        self.currentCard.draw(
+            self.screen,
+            (
+                w // 2 - (self.currentCard.width // 2),
+                (h // 2) - (self.currentCard.height // 2),
+            ),
+        )
+
+        gmi.display.flip()
+
+    # self.prints ops details
+
     def printWinner(self):
         return self.uno_core.winner
-    
+
     def checkIfWon(self):
-        self.uno_core.checkStatus(self.uno_core.getHumanPlayerIndex())
+        for player in self.players:
+            if len(player.cards) == 0:
+                self.winner = player
+                return True
 
-    def prompt(self):
-      
-        
-        self.print("\tPlay your card:")
+        return False
 
-        self.render_cards()
-        loop=True
-        while loop:
-            try:
-                inpt=input(f"\tpick[1-{len(self.player.cards)+1}]: ")
-                if inpt.strip(" ").lower() =="exit":
-                    raise KeyboardInterrupt
-                num=int(inpt)
-                
-                if num>=1 and num<=(len(self.player.cards)+1):
-                    ##below is for when they pick the last option which is Draw from deck
-                    if (len(self.player.cards)+1)==num:
-                        loop=False
-                        return num-1
-                    
-                    if self.uno_core.isValid(self.player.cards[num-1]):
-                        loop=False
-                        return num-1
-                    else:
-                        self.print(self.red("card incompatible\t\t\ndraw if you don't have !!!"))
-                else:
-                    self.print(self.red(f"please pick a number between[1-{len(self.player.cards)+1}]"))
-            
-            except ValueError:
-                self.print(self.red(f"please pick a number !!!"))
-            
-    #player Options
-    def render_cards(self):
-        for index,card in enumerate(self.player.cards):
-            self.print(f"{index+1} {self.coloured(card)}")
-        self.print(f"{len(self.player.cards)+1} draw (from stack)")
 
-    # call the colour functions in relative to the given card colour
-    def coloured(self,cards):
-        if cards == None:
-            return cards
-        try:
-            clr,card=cards.split("|")
-        except ValueError:
-            clr=None;
-            card=cards
-
-        if clr =="G":
-            return self.green(card)
-        elif clr == "B":
-            return self.blue(card)
-        elif clr == "R":
-            return self.red(card)
-        elif clr == "Y":
-            return self.yellow(card)
-        else:
-            return card
-    # red colour coder     
-    def red(self,data):
-        return f"\033[91m {data} \033[00m"
-    # green colour coder 
-    def green(self,data):
-        return f"\033[92m {data} \033[00m"
-    # yellow colour coder 
-    def yellow(self,data):
-        return f"\033[93m {data} \033[00m"
-    # blue colour coder 
-    def blue(self,data):
-        return f"\033[94m {data} \033[00m"
-    def bg_red(self,data):
-        return f"\033[41m{data}\033[00m"
-
-if __name__=="__main__":
-    Game().loop()
+if __name__ == "__main__":
+    try:
+        Game()
+    except SystemExit:
+        gmi.quit()

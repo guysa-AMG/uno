@@ -1,5 +1,7 @@
-# uno
 
+#<h1>Uno Excercise</h1>
+#<h3>Journal</h3>
+i Managed to Complete the Game Early now i'll try to implement a gui version.  
 
 
 ## Getting started
